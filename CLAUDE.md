@@ -13,16 +13,26 @@ brainstorming pass (see the `superpowers:brainstorming` skill) rather than guess
 
 ## Tech Stack
 
-- Next.js (App Router, TypeScript)
+- Next.js (App Router, TypeScript), built with `output: "standalone"` for Docker
 - Tailwind CSS for styling
-- Supabase (Postgres) for data storage — client wiring exists in `lib/supabase.ts`,
-  but no Supabase project or schema exists yet.
+- SQLite via Node's built-in `node:sqlite` (requires Node 24+) — connection in `lib/db.ts`,
+  migrations in `lib/migrations.ts`. No schema yet.
+- Deployed as a Docker image to a Hatchbox-managed server — see `DEPLOYMENT.md`.
 
 ## Development Commands
 
 - `npm run dev` — start the local dev server (http://localhost:3000)
 - `npm run build` — production build (also type-checks the whole project)
 - `npm run lint` — run ESLint
+
+## Data
+
+The database is created automatically at `./_data/jmtrims.sqlite3` in local development.
+Schema changes are **append-only** entries in `lib/migrations.ts`, applied on startup and
+tracked with SQLite's `user_version` — never edit or reorder a migration that has already
+been deployed, as servers past that version will silently skip it. Write a new one instead.
+
+SQLite is single-writer and file-backed, so the app runs as one container on one server.
 
 ## Conventions
 

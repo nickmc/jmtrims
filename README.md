@@ -4,37 +4,35 @@ Portfolio and appointment-booking website for JM Trims barber shop.
 
 ## Getting started
 
-Requirements: Node.js 22 or later.
+Requirements: Node.js 24 or later (the app uses the built-in `node:sqlite` module).
 
 ```bash
 git clone https://github.com/nickmc/jmtrims.git
 cd jmtrims
 npm install
-cp .env.example .env.local
 npm run dev
 ```
 
 Open http://localhost:3000 to view it.
 
-## Environment variables
+## Data
 
-Copy `.env.example` to `.env.local` and fill in real values once a Supabase project exists
-(Settings -> API in the Supabase dashboard gives you the URL and anon key). Until then, the
-placeholder values are enough to run the app locally — nothing reads from Supabase yet.
+State lives in a SQLite database. Locally it is created at `./_data/jmtrims.sqlite3`
+(git-ignored) on first run — no setup needed. In production it lives on a host volume
+mounted into the container at `/data`, so it survives redeploys.
+
+Schema changes go in `lib/migrations.ts` as append-only entries; they run automatically on
+startup and are tracked with SQLite's `user_version`. Never edit a migration that has
+already been deployed — add a new one.
+
+`.env.example` documents the optional overrides (`JMTRIMS_DATA_DIR`, `JMTRIMS_DB`); the
+defaults are fine for local development.
 
 ## Status
 
-This is an early scaffold — no site content or booking flow yet. See
+This is an early scaffold — no site content or booking flow yet, and no schema. See
 `docs/superpowers/specs/2026-07-11-jmtrims-setup-design.md` for what's planned.
 
 ## Deployment
 
-The domain is already purchased (Namecheap); hosting isn't finalized. To get a live preview
-URL now via Vercel:
-
-1. Go to https://vercel.com and sign in/sign up with the GitHub account that owns this repo.
-2. Click "Add New" -> "Project".
-3. Select the `jmtrims` repository (grant Vercel access to it if prompted) and click "Import".
-4. Leave the default Next.js build settings and click "Deploy".
-5. Every push to `main` now redeploys automatically; Vercel shows the live URL once the first
-   deploy finishes.
+Deployed as a Docker image to a Hatchbox-managed server. See [DEPLOYMENT.md](DEPLOYMENT.md).

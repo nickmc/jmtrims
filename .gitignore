@@ -24,6 +24,12 @@
 .DS_Store
 *.pem
 
+# local SQLite data (production data lives on the mounted host volume)
+/_data
+*.sqlite3
+*.sqlite3-wal
+*.sqlite3-shm
+
 # debug
 npm-debug.log*
 yarn-debug.log*
