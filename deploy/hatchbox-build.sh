@@ -43,17 +43,10 @@ if ! docker compose pull; then
   docker compose pull
 fi
 
-# The Procfile's `docker compose up` runs in a separate systemd unit that does not
-# inherit this shell's exports, and Hatchbox's .asdf-vars only carries the app env
-# vars. Write the resolved tag to .env (which Compose reads from the working
-# directory) so the web process starts the same SHA-pinned image we just pulled,
-# rather than silently falling back to :latest.
-echo "IMAGE_TAG=${IMAGE_TAG}" > .env
-
-# NOTE: this script only *pulls* the image. The container is started by the
-# `web:` process in the Procfile (`docker compose up`), which Hatchbox runs as a
-# systemd unit with Restart=always. Starting it here too would mean two owners of
-# the same container.
+# Hatchbox's Docker Compose guide: "Docker compose apps don't need any processes.
+# Just a custom build script" that brings the stack down and back up. There is no
+# Procfile and no systemd unit — this script owns the container lifecycle.
+docker compose up -d --remove-orphans
 docker image prune -f >/dev/null 2>&1 || true
 
-echo "Pulled jmtrims image ghcr.io/nickmc/jmtrims:${IMAGE_TAG} (started by Procfile web process)"
+echo "Deployed jmtrims image ghcr.io/nickmc/jmtrims:${IMAGE_TAG}"
