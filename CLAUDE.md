@@ -19,6 +19,12 @@ brainstorming pass (see the `superpowers:brainstorming` skill) rather than guess
   migrations in `lib/migrations.ts`. No schema yet.
 - Deployed as a Docker image to a Hatchbox-managed server — see `DEPLOYMENT.md`.
 
+Two required Hatchbox settings live in the dashboard, not this repo: a **Process**
+(`docker compose up`) so the container starts, and a **Caddyfile** with a literal
+`reverse_proxy 127.0.0.1:9040` above `%{default}` so traffic reaches it. Hatchbox does not
+infer either for a Docker Compose app — without them the site 404s no matter how healthy the
+container is. `DEPLOYMENT.md` has the details and a troubleshooting table.
+
 ## Development Commands
 
 - `npm run dev` — start the local dev server (http://localhost:3000)

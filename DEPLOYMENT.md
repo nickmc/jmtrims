@@ -30,23 +30,98 @@ Hatchbox auto-deploy **off**.
 | `deploy/hatchbox-build.sh` | Hatchbox Build Script: pull + restart, SHA-pinned |
 | `.github/workflows/deploy.yml` | Build → push GHCR → trigger Hatchbox |
 
-Per Hatchbox's Docker Compose guide, **Docker Compose apps need no processes** — no
-Procfile, no systemd unit. The Build Script alone owns the container lifecycle.
-
 The image relies on `output: "standalone"` in `next.config.ts`. That output does **not**
 include `public/` or `.next/static/`, so the Dockerfile copies both in explicitly — if you
 ever see the site load without CSS or images, that is the first thing to check.
 
+## Two Hatchbox settings this app cannot work without
+
+Hatchbox has no framework detection for a Docker Compose app (it detects Rails from a
+Gemfile, Astro from `package.json`, and so on). Two things it would otherwise infer must
+therefore be configured **by hand in the dashboard**, and neither lives in this repo.
+
+### 1. A Process, so the container starts
+
+**App → Processes → add a web process:**
+
+```
+docker compose up
+```
+
+No `-d` — the command must stay in the foreground so systemd can supervise it. Hatchbox
+creates `jmtrims-web_server.service` (a `systemd --user` unit with `Restart=always`), which
+starts the container on boot and restarts it if it dies. Without this the container only
+runs if something else started it, and a reboot leaves the site down.
+
+### 2. A Caddyfile with an explicit `reverse_proxy`, so traffic reaches it
+
+**App → Settings → Caddyfile:**
+
+```
+reverse_proxy 127.0.0.1:9040
+
+%{default}
+```
+
+**`%{default}` alone is not enough.** For an app with no detected framework it expands
+*without* a `reverse_proxy`, leaving a `file_server` pointing at `current/public` — so every
+request 404s no matter how healthy the container is. The literal directive above is what
+actually puts a proxy in the generated config.
+
+Notes on that snippet:
+
+- **The port is hardcoded on purpose.** Caddy's `{$PORT}` reads *Caddy's own process
+  environment*, where `PORT` is not set; it renders empty and Caddy falls back to `:80`
+  (symptom: a 308 redirect loop). The app's real `PORT` lives in
+  `/home/deploy/jmtrims/.hatchbox.env` and Caddy never sees it.
+- **9040 is this app's assigned port.** Hatchbox assigns one per app and keeps it stable
+  (`demo` 9000, `staging` 9010, `training` 9020, `futureaip` 9030, `jmtrims` 9040). If the
+  app is ever rebuilt or moved and the port changes, this value must be updated by hand or
+  the site will 404/502.
+- **Order matters.** `reverse_proxy` must be evaluated before `file_server`; reversed, the
+  file server answers first and 404s everything.
+
+Changing the Caddyfile only takes effect on the next deploy, when Hatchbox regenerates
+Caddy's config.
+
+### Deploys regenerate config for *every* app on the server
+
+Hatchbox writes one Caddy config for the whole box, so deploying any app re-renders the
+routes for all of them. An app whose Caddyfile is missing the `reverse_proxy` line will go
+down the moment *someone else's* deploy triggers a regeneration — it can appear to work for
+weeks on a stale in-memory config and then 404 with no related change.
+
 ## The server
 
-Deployed to **`airport-prod-copy`** (DigitalOcean, London), which also runs futureaip and
-three Rails apps (staging / demo / training) behind Hatchbox's Caddy.
+Deployed to a DigitalOcean droplet in London (`142.93.34.139`, hostname `staging-cluster`),
+which also runs futureaip and three Rails apps (staging / demo / training) behind Hatchbox's
+Caddy.
 
 | | |
 |---|---|
-| Docker / Compose | 29.6.1 / v5.3.0 — the `deploy` user is in the `docker` group |
-| Loopback ports in use | 9000, 9010, 9020 (Rails), 9030 (futureaip) — Hatchbox assigns the next free one |
-| Memory | 1.9 GB total; futureaip's container uses ~47 MB, so headroom is fine |
+| Docker / Compose | 29.6.1 / v5.3.0 |
+| Loopback ports | 9000 demo, 9010 staging, 9020 training, 9030 futureaip, **9040 jmtrims** |
+| Memory | 1.9 GB total; the Next.js container uses ~110 MB, futureaip ~47 MB |
+| Data volume | 10 GB block volume at `/mnt/volume_lon1_futureaip`, shared with futureaip |
+
+### Gotcha: the `docker` group and the systemd user manager
+
+The Process runs under `systemd --user`, which inherits its supplementary groups when the
+user manager **starts** — not when a unit runs. If `deploy` is added to the `docker` group
+after that manager is already running, every unit it spawns still lacks the group and fails
+with:
+
+```
+permission denied while trying to connect to the docker API at unix:///var/run/docker.sock
+```
+
+Confusingly `id deploy` shows the group, and `docker` works fine over SSH — only the systemd
+units are affected. Fix by restarting the user manager (`systemctl restart user@1000`) or
+rebooting, then confirm the `docker` GID appears in:
+
+```bash
+grep ^Groups: /proc/$(pgrep -u deploy -f 'systemd --user' | head -1)/status
+```
 
 ## Persistent data
 
@@ -97,23 +172,46 @@ GitHub repo secret: `HATCHBOX_DEPLOY_HOOK` — the deploy webhook URL from Hatch
 
 ## One-time Hatchbox setup
 
-Hatchbox has no "Docker Compose" app type here — futureaip runs as an ordinary app whose
-**Build Script** does all the Docker work, and this app follows the same pattern. The app
-type only decides which language runtimes Hatchbox installs on the server, which is
-irrelevant because the app itself runs inside a container.
+There is no "Docker Compose" app type — this runs as an ordinary app whose **Build Script**
+does the Docker work. Steps 5 and 6 are the two settings above; **skip either and the site
+returns 404 or never starts**, however healthy the container is.
 
 1. Create the app and connect this repo (any generic/Node app type is fine).
-2. **Build Script** — found under the app's Deploy / Deploy Scripts section *after* the app
-   exists, not on the creation form. Set it to run `deploy/hatchbox-build.sh`. If the field
-   is a script box rather than a path, use `bash deploy/hatchbox-build.sh`.
+2. **Build Script** — under the app's Deploy / Deploy Scripts section *after* the app
+   exists, not on the creation form: `bash deploy/hatchbox-build.sh`.
 3. Set the env vars above; turn **off** auto-deploy (CI triggers the deploy instead).
 4. Add the domain + enable SSL (Caddy / Let's Encrypt), and point DNS at the server IP.
-5. In GitHub, add the `HATCHBOX_DEPLOY_HOOK` secret.
-6. If the GHCR image is private, either make the package public or set
+5. **Add a Process:** `docker compose up` (no `-d`).
+6. **Set the Caddyfile:** `reverse_proxy 127.0.0.1:9040` above `%{default}`.
+7. In GitHub, add the `HATCHBOX_DEPLOY_HOOK` secret.
+8. If the GHCR image is private, either make the package public or set
    `GHCR_USER`/`GHCR_TOKEN`.
 
 Hatchbox writes the assigned `PORT` (along with the env vars above) into
 `/home/deploy/jmtrims/.hatchbox.env`, which is where Compose picks it up.
+
+## Troubleshooting
+
+| Symptom | Cause |
+|---|---|
+| **404 on every path**, container healthy | Caddyfile missing the literal `reverse_proxy` line — `%{default}` alone does not add one |
+| **308 redirect loop** | `reverse_proxy` present but pointing at the wrong port — `{$PORT}` renders empty (Caddy's env, not the app's) and falls back to `:80`. Hardcode `9040` |
+| **Container not running after reboot** | No Process defined, or its systemd unit failed |
+| **Unit fails: `permission denied ... docker.sock`** | The systemd user manager predates `deploy` joining the `docker` group — restart it (see above) |
+| **Site 404s with no related change** | Another app's deploy regenerated Caddy config and exposed a missing `reverse_proxy` line |
+| **Deploy fails: data dir missing** | The host directory does not exist; the build script refuses rather than let Docker create disposable storage |
+
+Useful checks (read-only):
+
+```bash
+# what Caddy is actually serving for this app
+curl -s http://127.0.0.1:2019/config/apps/http/servers | python3 -m json.tool | grep -A3 dial
+
+# does the app answer directly, bypassing Caddy?
+curl -s http://127.0.0.1:9040/healthz
+```
+
+If the second works and the site still 404s, the problem is Caddy's config, not the app.
 
 ## Health check
 
