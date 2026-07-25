@@ -27,8 +27,26 @@ Hatchbox auto-deploy **off**.
 | `Dockerfile` | Multi-stage: deps → `next build` → minimal standalone runtime |
 | `.dockerignore` | Trims the build context |
 | `docker-compose.yml` | Production stack (image, volume, port, healthcheck) |
-| `deploy/hatchbox-build.sh` | Hatchbox Build Script: pull + restart, SHA-pinned |
+| `Procfile` | `web:` process — makes Hatchbox proxy to the app (see below) |
+| `deploy/hatchbox-build.sh` | Hatchbox Build Script: pulls the SHA-pinned image |
 | `.github/workflows/deploy.yml` | Build → push GHCR → trigger Hatchbox |
+
+## The Procfile is what makes Caddy proxy to the app
+
+**Without a `Procfile` containing a `web:` entry, Hatchbox treats the app as a
+static site.** It generates a Caddy config with a `file_server` pointing at
+`current/public` and **no `reverse_proxy`**, so every request 404s no matter what the
+app's Caddyfile setting says. This is not something the Caddyfile can override — an
+app with `%{default}` and no Procfile still renders without a proxy.
+
+So `web: docker compose up` runs the container in the **foreground**, as a systemd
+user unit (`jmtrims-server.service`) with `Restart=always`. That unit owns the
+container lifecycle; `deploy/hatchbox-build.sh` only pulls the image. Do not add
+`docker compose up -d` back to the build script — two owners of one container.
+
+Because the systemd unit does not inherit the build script's exports, the script
+writes the resolved tag to `.env` (git-ignored, generated per deploy) so Compose
+starts the same SHA-pinned image that was just pulled instead of `:latest`.
 
 The image relies on `output: "standalone"` in `next.config.ts`. That output does **not**
 include `public/` or `.next/static/`, so the Dockerfile copies both in explicitly — if you
