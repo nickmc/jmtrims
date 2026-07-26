@@ -35,4 +35,7 @@ This is an early scaffold — no site content or booking flow yet, and no schema
 
 ## Deployment
 
-Deployed as a Docker image to a Hatchbox-managed server. See [DEPLOYMENT.md](DEPLOYMENT.md).
+Deployed as a Docker image to a Hatchbox-managed server. See [DEPLOYMENT.md](DEPLOYMENT.md)
+for this app's setup, and
+[docs/hatchbox-docker-setup.md](docs/hatchbox-docker-setup.md) for the reusable recipe to
+copy when putting another Dockerised app on Hatchbox.
