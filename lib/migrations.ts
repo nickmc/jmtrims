@@ -17,21 +17,18 @@ export type Migration = {
 };
 
 export const migrations: Migration[] = [
-  // No schema yet — the booking model needs a design pass before it is worth
-  // committing to tables. Add the first migration like this:
-  //
-  // {
-  //   name: "create_appointments",
-  //   up: (db) => {
-  //     db.exec(`
-  //       CREATE TABLE appointments (
-  //         id         INTEGER PRIMARY KEY,
-  //         starts_at  TEXT NOT NULL,
-  //         created_at TEXT NOT NULL DEFAULT (datetime('now'))
-  //       )
-  //     `);
-  //   },
-  // },
+  {
+    name: "create_connection_test",
+    up: (db) => {
+      db.exec(`
+        CREATE TABLE connection_test (
+          id         INTEGER PRIMARY KEY,
+          value      TEXT NOT NULL,
+          created_at TEXT NOT NULL DEFAULT (datetime('now'))
+        )
+      `);
+    },
+  },
 ];
 
 /**
