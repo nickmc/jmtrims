@@ -20,15 +20,6 @@ ENV JMTRIMS_BUILD_TIME=$BUILD_TIME
 ENV NEXT_TELEMETRY_DISABLED=1
 RUN npm run build
 
-# TEMPORARY DIAGNOSTIC — remove once the "0 migrations" production mystery is
-# solved. Confirms whether the migrations array actually makes it into the
-# compiled output in THIS exact build environment (Alpine/Node 24/Turbopack),
-# since a local macOS build of the identical source works correctly.
-RUN echo "=== migration string occurrences in compiled output ===" && \
-    grep -rc "create_connection_test" .next/server/ | grep -v ":0" || echo "NOT FOUND ANYWHERE" && \
-    echo "=== total occurrences ===" && \
-    grep -rho "create_connection_test\|create_appointments\|add_calendar_sync_to_appointments" .next/server/ | sort | uniq -c
-
 # --- Stage 3: runtime ---
 FROM node:24-alpine AS runtime
 WORKDIR /app

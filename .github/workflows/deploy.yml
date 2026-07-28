@@ -43,6 +43,12 @@ jobs:
         id: stamp
         run: echo "build_time=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_OUTPUT"
 
+      # No cache-from/cache-to: GHA-backed BuildKit cache was serving stale
+      # layers for this multi-stage build (the final image kept the runtime
+      # stage's COPY --from=builder output from an old build even though the
+      # builder stage itself recompiled fresh) — every deploy silently ran
+      # days-old code. Full rebuild each time costs ~1-2 extra minutes, which
+      # is worth it for a build actually matching its source.
       - name: Build and push
         uses: docker/build-push-action@v6
         with:
@@ -52,8 +58,6 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           build-args: |
             BUILD_TIME=${{ steps.stamp.outputs.build_time }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
 
       # Best-effort: the image is already in GHCR by here, so a missing or bad
       # hook warns rather than failing the build.
