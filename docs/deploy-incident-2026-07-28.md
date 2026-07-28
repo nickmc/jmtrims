@@ -41,7 +41,60 @@ pushed to `main`, or how many times "the deploy succeeded."
    than 3, depending on which specific old build was actually being served at
    any given check).
 
-## Root cause NOT yet fully resolved: stale Docker daemon image cache on the server
+## RESOLVED — the real third root cause: compose started `:latest`, not the pulled image
+
+**This section supersedes the "stale Docker daemon image cache" and
+`docker compose pull` fallback theories below.** Both were wrong; the evidence
+that cleared them is recorded here.
+
+`deploy/hatchbox-build.sh` computed `IMAGE_TAG` from `REVISION`, exported it,
+and pulled the SHA-tagged image correctly — but `docker compose up` then
+started **`:latest`** instead. `docker-compose.yml` had
+`image: ghcr.io/nickmc/jmtrims:${IMAGE_TAG:-latest}`, and the exported
+`IMAGE_TAG` does not reach the compose invocation under Hatchbox, so it fell to
+the `:-latest` default. Every deploy pulled fresh code and then ran whatever
+`:latest` happened to point at. Deploys reported success the whole time.
+
+Evidence (all on the server, 2026-07-28):
+
+```
+$ docker inspect --format '{{.Config.Image}} {{.Image}}' jmtrims-app-1
+ghcr.io/nickmc/jmtrims:latest sha256:23be0f10...   # <- :latest, not the deployed SHA
+
+$ docker compose config | grep image
+    image: ghcr.io/nickmc/jmtrims:latest           # <- IMAGE_TAG absent, default won
+```
+
+This also explains why the manual `docker pull ghcr.io/nickmc/jmtrims:latest`
+fixed the site: it updated the one tag the `up` actually used.
+
+**Theories ruled out along the way** (don't re-investigate these):
+
+- *SHA-tagged `docker compose pull` falling back to `:latest`* — no. All five
+  releases have a valid `REVISION`, every short SHA exists as a GHCR tag, and
+  `docker images` shows each SHA-tagged image present locally with a distinct
+  digest, pulled at its deploy time. The pull always worked.
+- *Stale Docker daemon image cache* — no. The daemon held correct, distinct
+  images for every commit. Only the `:latest` tag lagged, and only because
+  compose was reading it.
+- *Caddy misconfiguration* — no. The 502s were transient, from Caddy hitting a
+  container mid-recreate. They cleared on their own; Caddy was never touched.
+  `/etc/caddy/` contains no port references at all (Hatchbox manages it
+  elsewhere), so an empty grep there is expected and not a symptom.
+
+### Fix
+
+- `docker-compose.yml`: `image: ${JMTRIMS_IMAGE:?...}` — the `:-latest` default
+  is gone. A lost variable now fails the deploy instead of silently starting
+  old code.
+- `deploy/hatchbox-build.sh`: resolves the pulled tag to an immutable digest and
+  passes that to compose; `--force-recreate` so a matching-but-stale container
+  can't no-op the `up`; hard errors instead of `:latest` fallbacks on a missing
+  `REVISION` or a failed pull; and a post-deploy assertion comparing the running
+  container's image ID to the deployed digest, which would have caught this on
+  the first bad deploy.
+
+## Superseded theory (kept for the record): stale Docker daemon image cache
 
 Even after confirming the GHCR-hosted image was 100% correct (verified via
 direct registry API layer inspection — see below for the exact method),
@@ -70,7 +123,7 @@ passing. This is a new/different failure mode from before (previously we got
 a real response — 200 or 500 — from the app; now nothing answers on the
 host-mapped port from Caddy's perspective).
 
-## Next diagnostic steps (pick up here)
+## Next diagnostic steps — SUPERSEDED, all three resolved; see the RESOLVED section above
 
 1. On the server, run both of these and compare:
    ```bash

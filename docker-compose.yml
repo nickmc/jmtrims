@@ -7,7 +7,13 @@ name: jmtrims
 
 services:
   app:
-    image: ghcr.io/nickmc/jmtrims:${IMAGE_TAG:-latest}
+    # Set by deploy/hatchbox-build.sh to an immutable digest
+    # (ghcr.io/nickmc/jmtrims@sha256:...). Deliberately has NO default: a
+    # `:-latest` fallback here silently started a stale image whenever the
+    # variable failed to reach compose, which is exactly how the 2026-07-28
+    # incident served days-old code through green deploys. Failing to resolve
+    # is better than starting the wrong build.
+    image: ${JMTRIMS_IMAGE:?set by deploy/hatchbox-build.sh}
     restart: unless-stopped
     ports:
       - "127.0.0.1:${PORT:-3000}:3000"
