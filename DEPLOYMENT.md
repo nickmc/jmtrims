@@ -167,6 +167,8 @@ Set in the Hatchbox app (Env Vars tab):
 | `JMTRIMS_HOST_DATA_DIR` | `/mnt/volume_lon1_futureaip/jmtrims` | Host path of the data directory |
 | `PORT` | (assigned by Hatchbox) | Compose binds `127.0.0.1:${PORT}:3000` |
 | `GHCR_USER` / `GHCR_TOKEN` | only if the GHCR package is **private** | PAT with `read:packages` |
+| `APPLE_CALDAV_USERNAME` | the shop's iCloud email | For the booking calendar sync (`lib/calendar.ts`) |
+| `APPLE_CALDAV_APP_PASSWORD` | `xxxx-xxxx-xxxx-xxxx` | Generated at appleid.apple.com -> Sign-In and Security -> App-Specific Passwords. Optional — bookings still work without it, just skip the calendar sync |
 
 GitHub repo secret: `HATCHBOX_DEPLOY_HOOK` — the deploy webhook URL from Hatchbox.
 

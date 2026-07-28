@@ -15,6 +15,11 @@ services:
       # The SQLite DB is written here; /data is the mounted volume below, so
       # all state survives redeploys.
       JMTRIMS_DATA_DIR: /data
+      # Apple iCloud CalDAV credentials for the booking calendar sync (see
+      # lib/calendar.ts). Set as Hatchbox Env Vars; if left unset there,
+      # these substitute empty and the app just skips the calendar sync.
+      APPLE_CALDAV_USERNAME: ${APPLE_CALDAV_USERNAME:-}
+      APPLE_CALDAV_APP_PASSWORD: ${APPLE_CALDAV_APP_PASSWORD:-}
     volumes:
       # Host block volume -> container /data. Override the host path per server
       # via the JMTRIMS_HOST_DATA_DIR env var in Hatchbox. The default is a
