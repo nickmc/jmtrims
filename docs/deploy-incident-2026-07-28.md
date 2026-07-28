@@ -1,12 +1,36 @@
 # Deploy incident — 2026-07-28
 
+**STATUS: RESOLVED** (2026-07-28 20:07). A push to `main` now builds, deploys,
+and reaches production unattended — verified end to end with commit `5fb57b6`
+(`/healthz` reported `buildTime 2026-07-28T20:06:56Z` minutes after the push,
+with no manual step on the server).
+
+Four separate bugs, stacked, each hiding the next. Two were found early (the
+SQLite build race and the GHA layer cache); neither changed the live site,
+because bugs 3 and 4 were underneath them:
+
+| # | Bug | Fix |
+|---|-----|-----|
+| 1 | `next build` workers raced to migrate the real SQLite file | `64fda0d` |
+| 2 | GHA/BuildKit layer cache served a stale runtime stage | `bc8d392` |
+| 3 | Deploy pulled the right image, then started `:latest` | `b37c845` |
+| 4 | Compose published port 3000; Caddy only reads 9040 | `5fb57b6` |
+
+**Bugs 3 and 4 are the same mistake twice: a required value with a silent
+default** (`${IMAGE_TAG:-latest}`, `${PORT:-3000}`). Both failed invisibly —
+the fallback was valid enough for Docker to accept, so containers started,
+healthchecks passed, and every deploy reported success while the public site
+served old code or 502s. That is the lesson worth keeping from this incident:
+in the deploy path, a wrong-but-plausible default is worse than no default,
+because it converts a loud failure into a silent one.
+
 ## Symptom
 Live site (jmtrims.com) kept serving stale content (old single-line "coming
 soon" homepage, not the new gallery/booking/contact layout) and `/healthz`
 returned a plain-text `Internal Server Error` — no matter how many fixes were
 pushed to `main`, or how many times "the deploy succeeded."
 
-## Root causes found (both fixed and merged)
+## The first two root causes (found early; real, but not what kept the site stale)
 
 1. **Build-time SQLite race** (fixed in `64fda0d`, `lib/db.ts`). `next build`
    collects page data using several parallel worker processes, each of which
@@ -93,6 +117,42 @@ fixed the site: it updated the one tag the `up` actually used.
   `REVISION` or a failed pull; and a post-deploy assertion comparing the running
   container's image ID to the deployed digest, which would have caught this on
   the first bad deploy.
+
+## Fourth root cause: compose published port 3000, Caddy reads 9040
+
+Found immediately after fixing #3, and the reason the site 502'd even once the
+correct image was finally running.
+
+`docker-compose.yml` published `127.0.0.1:${PORT:-3000}:3000`. Hatchbox
+supplies `PORT`, but when it didn't arrive (notably on a manual script run),
+compose bound **3000**. Nothing else on this server uses 3000 — the Rails apps
+are on 9000/9010/9020, futureaip on 9030, jmtrims on 9040 — so the bind
+*succeeded*. The container came up healthy and stayed healthy; only the public
+site was broken:
+
+```
+$ docker ps -a --filter name=jmtrims
+PORTS                      STATUS
+127.0.0.1:3000->3000/tcp   Up 4 minutes (healthy)     # <- Caddy proxies 9040
+```
+
+A port collision would have failed loudly. A *free* wrong port is what made
+this silent.
+
+Docker's healthcheck cannot catch this: it runs **inside** the container
+against `127.0.0.1:3000`, which is correct regardless of how the port is
+published to the host. Container health and site reachability are different
+questions, and only the second one matters.
+
+### Fix (`5fb57b6`)
+
+- `docker-compose.yml`: `${PORT:?...}` — no default. A missing `PORT` fails the
+  deploy instead of publishing a port Caddy never reads.
+- `deploy/hatchbox-build.sh`: validates `PORT` up front with an actionable
+  message, and after `up` polls `http://127.0.0.1:$PORT/healthz` (30 × 2s)
+  until the app answers, failing the deploy with the container's actual port
+  mapping if it never does. This is a **host-side** check, and it is the one
+  that would have caught this class of failure automatically.
 
 ## Superseded theory (kept for the record): stale Docker daemon image cache
 
