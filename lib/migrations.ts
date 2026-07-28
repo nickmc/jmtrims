@@ -29,6 +29,40 @@ export const migrations: Migration[] = [
       `);
     },
   },
+  {
+    name: "create_appointments",
+    up: (db) => {
+      db.exec(`
+        CREATE TABLE appointments (
+          id         INTEGER PRIMARY KEY,
+          name       TEXT NOT NULL,
+          phone      TEXT NOT NULL,
+          location   TEXT NOT NULL,
+          starts_at  TEXT NOT NULL,
+          created_at TEXT NOT NULL DEFAULT (datetime('now'))
+        )
+      `);
+    },
+  },
+  {
+    name: "add_calendar_sync_to_appointments",
+    up: (db) => {
+      // calendar_object_url identifies the CalDAV event created for this
+      // booking, so a poller can notice when the owner deletes it in Apple
+      // Calendar. cancelled_at is set (rather than deleting the row) so the
+      // client's name/phone/location are still around to follow up with,
+      // while the slot itself frees up for new bookings.
+      db.exec(`ALTER TABLE appointments ADD COLUMN calendar_object_url TEXT`);
+      db.exec(`ALTER TABLE appointments ADD COLUMN cancelled_at TEXT`);
+      // Unique only among active bookings, so a cancelled slot's starts_at
+      // can be booked again by someone else.
+      db.exec(`
+        CREATE UNIQUE INDEX idx_appointments_active_starts_at
+          ON appointments(starts_at)
+          WHERE cancelled_at IS NULL
+      `);
+    },
+  },
 ];
 
 /**
