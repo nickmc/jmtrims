@@ -39,9 +39,33 @@ const globalForDb = globalThis as typeof globalThis & {
   __jmtrimsDb?: DatabaseSync;
 };
 
-export const db: DatabaseSync = globalForDb.__jmtrimsDb ?? open();
+// `next build` imports every route's modules (including this one) from
+// several parallel workers just to collect their config — not to serve real
+// requests. Actually opening + migrating the file there means multiple
+// worker processes race to write-migrate the same fresh SQLite file, which
+// intermittently fails with "database is locked". Nothing at build time
+// needs a real connection, so skip it entirely in that phase.
+const isBuildPhase = process.env.NEXT_PHASE === "phase-production-build";
 
-if (process.env.NODE_ENV !== "production") {
+function unavailableDuringBuild(): DatabaseSync {
+  return new Proxy(
+    {},
+    {
+      get(_target, prop) {
+        throw new Error(
+          `lib/db.ts: attempted to use db.${String(prop)} during next build — ` +
+            "the database is only available at runtime."
+        );
+      },
+    }
+  ) as DatabaseSync;
+}
+
+export const db: DatabaseSync = isBuildPhase
+  ? unavailableDuringBuild()
+  : (globalForDb.__jmtrimsDb ?? open());
+
+if (!isBuildPhase && process.env.NODE_ENV !== "production") {
   globalForDb.__jmtrimsDb = db;
 }
 
