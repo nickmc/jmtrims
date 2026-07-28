@@ -16,7 +16,17 @@ services:
     image: ${JMTRIMS_IMAGE:?set by deploy/hatchbox-build.sh}
     restart: unless-stopped
     ports:
-      - "127.0.0.1:${PORT:-3000}:3000"
+      # Caddy reverse-proxies the public domain to 127.0.0.1:9040 on this
+      # server (each app has its own loopback port: 9000/9010/9020 Rails,
+      # 9030 futureaip, 9040 jmtrims). Publishing anywhere else means a 502
+      # even though the container is perfectly healthy.
+      #
+      # No default, deliberately. The old `${PORT:-3000}` silently published
+      # 3000 whenever PORT didn't arrive — and because nothing else uses 3000
+      # on this server, the bind *succeeded* and the container went healthy
+      # while the public site 502'd. Same failure shape as the `:-latest`
+      # image default: a required value quietly substituted. Fail instead.
+      - "127.0.0.1:${PORT:?set by Hatchbox; use PORT=9040 for manual runs}:3000"
     environment:
       # The SQLite DB is written here; /data is the mounted volume below, so
       # all state survives redeploys.

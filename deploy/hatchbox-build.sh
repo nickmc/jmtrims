@@ -20,6 +20,15 @@ fi
 # The SQLite DB lives on a host volume mounted into the container at /data.
 # Fail loudly if it is missing rather than letting Docker create an empty dir
 # and silently start the app on storage that vanishes at the next redeploy.
+# Caddy proxies the public domain to 127.0.0.1:$PORT, so a wrong or missing
+# PORT means a 502 with a perfectly healthy container. Check it before doing
+# any work rather than letting compose fail later with a vaguer message.
+if [ -z "${PORT:-}" ]; then
+  echo "ERROR: PORT is not set. Hatchbox normally supplies it." >&2
+  echo "       For a manual run on this server, use: PORT=9040 bash $0" >&2
+  exit 1
+fi
+
 DATA_DIR="${JMTRIMS_HOST_DATA_DIR:-/mnt/volume_lon1_futureaip/jmtrims}"
 if [ ! -d "$DATA_DIR" ]; then
   echo "ERROR: data dir '$DATA_DIR' does not exist on this server." >&2
@@ -92,6 +101,32 @@ if [ -z "$RUNNING" ] || [ "$RUNNING" != "$EXPECTED" ]; then
   echo "       but the deploy resolved '${EXPECTED:-<none>}'." >&2
   exit 1
 fi
+
+# Verify the app is reachable on the host port Caddy actually proxies to.
+#
+# A healthy container is NOT enough: Docker's healthcheck runs *inside* the
+# container against 127.0.0.1:3000, which stays green even when the port is
+# published to the wrong host port. That is exactly how a deploy could report
+# success while the public site returned 502 (2026-07-28: PORT was absent, so
+# compose published 3000 and Caddy's 9040 hit nothing).
+HOST_PORT="${PORT:?PORT is not set — Hatchbox normally supplies it; use PORT=9040 for a manual run}"
+echo "Waiting for the app on 127.0.0.1:${HOST_PORT} ..."
+for _ in $(seq 1 30); do
+  if curl -fsS --max-time 2 "http://127.0.0.1:${HOST_PORT}/healthz" >/dev/null 2>&1; then
+    READY=1
+    break
+  fi
+  sleep 2
+done
+if [ -z "${READY:-}" ]; then
+  echo "ERROR: app did not answer on 127.0.0.1:${HOST_PORT}/healthz within 60s." >&2
+  echo "       Container port mapping:" >&2
+  docker ps --filter name=jmtrims-app-1 --format '       {{.Ports}}' >&2
+  echo "       Caddy proxies to 127.0.0.1:9040 — if the mapping above differs," >&2
+  echo "       PORT was wrong or missing for this deploy." >&2
+  exit 1
+fi
+echo "App is answering on 127.0.0.1:${HOST_PORT}."
 
 # Prune dangling images only (`-f` without `-a`): this never touches images that
 # still have a tag, so futureaip's and the Rails apps' images on this shared
