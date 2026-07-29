@@ -63,6 +63,20 @@ export const migrations: Migration[] = [
       `);
     },
   },
+  {
+    name: "add_calendar_missing_since_to_appointments",
+    up: (db) => {
+      // Set the first time the cancellation poller can't find a booking's
+      // calendar event, cleared if a later poll finds it again. Only once a
+      // booking is missing on two separate polls in a row does it actually
+      // get cancelled — a transient glitch (network hiccup, or the exact bug
+      // this column was added to guard against: briefly resolving to the
+      // wrong calendar) self-heals instead of silently freeing a real slot.
+      db.exec(
+        `ALTER TABLE appointments ADD COLUMN calendar_missing_since TEXT`
+      );
+    },
+  },
 ];
 
 /**
