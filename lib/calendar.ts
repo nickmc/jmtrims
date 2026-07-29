@@ -54,6 +54,16 @@ function buildEventIcs(
   ].join("\r\n");
 }
 
+// Which calendar to read/write, by display name — NOT by picking "whichever
+// comes first" from fetchCalendars(). iCloud does not guarantee that list is
+// in a stable order across requests, so a position-based pick can silently
+// resolve to a different calendar on a later call. That's a real incident
+// this app already hit: a booking's event landed in "Barbering", but the
+// cancellation poller's own connect() call later picked a different calendar,
+// didn't find the event there, concluded it had been deleted, and wrongly
+// freed the slot. Selecting by name is deterministic regardless of API order.
+const CALENDAR_NAME = process.env.APPLE_CALENDAR_NAME || "Barbering";
+
 // Both the booking write and the cancellation poller need the same "which
 // calendar do we write to" resolution, and both should quietly no-op if the
 // Apple credentials aren't configured — this is where that's decided.
@@ -77,6 +87,9 @@ async function connect(): Promise<{
 
   const calendars = await client.fetchCalendars();
   const calendar =
+    calendars.find(
+      (cal) => cal.displayName === CALENDAR_NAME && cal.components?.includes("VEVENT")
+    ) ??
     calendars.find((cal) => cal.components?.includes("VEVENT")) ??
     calendars[0];
 
