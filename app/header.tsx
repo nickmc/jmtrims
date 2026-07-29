@@ -43,6 +43,8 @@ export default function Header() {
         </svg>
       </button>
 
+      <p className="text-lg font-medium text-[#f5f0e1]">JMTrims</p>
+
       <a
         href="https://www.instagram.com/jmtrims__"
         target="_blank"
