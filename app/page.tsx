@@ -9,11 +9,11 @@ export default function Home() {
         id={SECTION_IDS[0]}
         className="flex min-h-screen scroll-mt-16 flex-col items-center justify-center gap-8 px-6 py-12"
       >
-        <p className="text-5xl text-center">coming soon JMTrims</p>
+        <p className="text-2xl">Gallery</p>
 
-        <div className="flex flex-wrap items-center justify-center gap-6">
+        <div className="flex items-center justify-center gap-3 sm:gap-6">
           <video
-            className="w-48 rounded-lg shadow-lg sm:w-56"
+            className="w-32 rounded-lg shadow-lg sm:w-48 md:w-56"
             src="/videos/clip-1.mp4"
             autoPlay
             loop
@@ -21,8 +21,27 @@ export default function Home() {
             playsInline
           />
           <video
-            className="w-48 rounded-lg shadow-lg sm:w-56"
+            className="w-32 rounded-lg shadow-lg sm:w-48 md:w-56"
             src="/videos/clip-2.mp4"
+            autoPlay
+            loop
+            muted
+            playsInline
+          />
+        </div>
+
+        <div className="flex items-center justify-center gap-3 sm:gap-6">
+          <video
+            className="w-32 rounded-lg shadow-lg sm:w-48 md:w-56"
+            src="/videos/clip-3.mp4"
+            autoPlay
+            loop
+            muted
+            playsInline
+          />
+          <video
+            className="w-32 rounded-lg shadow-lg sm:w-48 md:w-56"
+            src="/videos/clip-4.mp4"
             autoPlay
             loop
             muted

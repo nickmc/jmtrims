@@ -24,7 +24,7 @@ export default function Header() {
         type="button"
         aria-label="Scroll to next section"
         onClick={scrollToNextSection}
-        className="text-white"
+        className="text-[#f5f0e1]"
       >
         <svg
           xmlns="http://www.w3.org/2000/svg"
@@ -48,7 +48,7 @@ export default function Header() {
         target="_blank"
         rel="noopener noreferrer"
         aria-label="JM Trims on Instagram"
-        className="text-white transition-opacity hover:opacity-70"
+        className="text-[#f5f0e1] transition-opacity hover:opacity-70"
       >
         <InstagramIcon width={26} height={26} />
       </a>
