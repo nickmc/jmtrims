@@ -176,25 +176,23 @@ export default function BookingCalendar() {
 
       {dayOpen && (
         <div className="flex flex-wrap justify-center gap-3">
-          {slots.map((slot) => (
-            <button
-              key={slot.time}
-              type="button"
-              disabled={!slot.available}
-              onClick={() => setSelectedTime(slot.time)}
-              className={`rounded-md border px-4 py-2 text-base ${
-                selectedTime === slot.time
-                  ? "border-black bg-black/10"
-                  : "border-black/30 bg-white/60"
-              } ${
-                !slot.available
-                  ? "cursor-not-allowed opacity-30"
-                  : "hover:bg-black/10"
-              }`}
-            >
-              {slot.time}
-            </button>
-          ))}
+          {slots
+            .filter((slot) => slot.time !== selectedTime)
+            .map((slot) => (
+              <button
+                key={slot.time}
+                type="button"
+                disabled={!slot.available}
+                onClick={() => setSelectedTime(slot.time)}
+                className={`rounded-md border px-4 py-2 text-base ${
+                  slot.available
+                    ? "border-black/30 bg-white/60 hover:bg-black/10"
+                    : "cursor-not-allowed border-black/30 bg-white/60 opacity-30"
+                }`}
+              >
+                {slot.time}
+              </button>
+            ))}
         </div>
       )}
 
