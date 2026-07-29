@@ -9,7 +9,7 @@ export default function Home() {
         id={SECTION_IDS[0]}
         className="flex min-h-screen scroll-mt-16 flex-col items-center justify-center gap-8 px-6 py-12"
       >
-        <p className="text-2xl">Gallery</p>
+        <p className="text-2xl">The Gallery</p>
 
         <div className="flex items-center justify-center gap-3 sm:gap-6">
           <video
