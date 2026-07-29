@@ -118,6 +118,11 @@ export default function BookingCalendar() {
     <div className="flex w-full max-w-3xl flex-col items-center gap-6 rounded-2xl bg-white/30 p-6 sm:p-10">
       <p className="text-3xl">Book an appointment</p>
 
+      <div className="flex flex-wrap justify-center gap-4 text-sm font-medium">
+        <span>Haircut — £15</span>
+        <span>Scissor cut — £20</span>
+      </div>
+
       <div className="flex w-full flex-wrap justify-center gap-3">
         {upcomingDates(10).map((d) => {
           const { weekday, day } = describeDate(d);
