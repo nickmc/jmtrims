@@ -7,7 +7,7 @@ export default function Home() {
     <>
       <section
         id={SECTION_IDS[0]}
-        className="flex min-h-screen scroll-mt-16 flex-col items-center justify-center gap-8 px-6 py-12"
+        className="flex scroll-mt-16 flex-col items-center justify-center gap-8 px-6 py-12"
       >
         <p className="text-2xl">The Gallery</p>
 
@@ -52,14 +52,14 @@ export default function Home() {
 
       <section
         id={SECTION_IDS[1]}
-        className="flex min-h-screen scroll-mt-16 flex-col items-center justify-center gap-8 px-6 py-12"
+        className="flex scroll-mt-16 flex-col items-center justify-center gap-8 px-6 py-12"
       >
         <BookingCalendar />
       </section>
 
       <section
         id={SECTION_IDS[2]}
-        className="flex min-h-screen scroll-mt-16 flex-col items-center justify-center gap-4 px-6 py-12"
+        className="flex scroll-mt-16 flex-col items-center justify-center gap-4 px-6 py-12"
       >
         <p className="text-2xl">Contact</p>
         <a
