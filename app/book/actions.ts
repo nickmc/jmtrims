@@ -1,11 +1,24 @@
 "use server";
 
 import { db } from "@/lib/db";
-import { isOpenDay, isPastSlot, slotsForDay } from "@/lib/booking";
-import { addBookingToCalendar } from "@/lib/calendar";
+import { isOpenDay, isPastSlot, slotsForDay, slotStartUtc, SLOT_MINUTES } from "@/lib/booking";
+import { addBookingToCalendar, getBusyPeriods, type BusyPeriod } from "@/lib/calendar";
 import type { StatementResultingChanges } from "node:sqlite";
 
 export type SlotAvailability = { time: string; available: boolean };
+
+function overlapsBusyPeriod(
+  date: string,
+  time: string,
+  busyPeriods: BusyPeriod[] | null
+): boolean {
+  if (!busyPeriods || busyPeriods.length === 0) return false;
+  const slotStart = slotStartUtc(date, time);
+  const slotEnd = new Date(slotStart.getTime() + SLOT_MINUTES * 60_000);
+  return busyPeriods.some(
+    (period) => slotStart < period.end && slotEnd > period.start
+  );
+}
 
 export async function getAvailability(
   date: string
@@ -22,9 +35,18 @@ export async function getAvailability(
 
   const bookedTimes = new Set(booked.map((row) => row.starts_at.slice(11, 16)));
 
+  // Anything the owner has manually put in Apple Calendar (a day off, an
+  // appointment elsewhere) blocks the overlapping slots too — see
+  // lib/calendar.ts's getBusyPeriods for how that's told apart from the
+  // site's own booking events.
+  const busyPeriods = await getBusyPeriods(date);
+
   const slots = slotsForDay().map((time) => ({
     time,
-    available: !bookedTimes.has(time) && !isPastSlot(date, time),
+    available:
+      !bookedTimes.has(time) &&
+      !isPastSlot(date, time) &&
+      !overlapsBusyPeriod(date, time, busyPeriods),
   }));
 
   return { open: true, slots };
@@ -53,6 +75,9 @@ export async function createBooking(
   }
   if (isPastSlot(date, time)) {
     return { ok: false, error: "That time has already passed." };
+  }
+  if (overlapsBusyPeriod(date, time, await getBusyPeriods(date))) {
+    return { ok: false, error: "That slot was just booked — please pick another." };
   }
   if (!name.trim() || !phone.trim() || !location.trim()) {
     return { ok: false, error: "Name, phone, and location are all required." };

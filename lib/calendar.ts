@@ -173,3 +173,81 @@ export async function findDeletedCalendarObjectUrls(
   const existingUrls = new Set(existing.map((obj) => obj.url));
   return urls.filter((url) => !existingUrls.has(url));
 }
+
+export type BusyPeriod = { start: Date; end: Date };
+
+// All bookings this app creates carry this UID suffix (see addBookingToCalendar).
+// A manually-added event in Apple Calendar will never happen to contain it, so
+// it's a safe way to tell "the owner's own busy time" apart from "a client's
+// booking" without needing a separate marker property.
+const OWN_BOOKING_MARKER = "@jmtrims.com";
+
+function parseEventTime(
+  data: string,
+  field: "DTSTART" | "DTEND"
+): { date: Date; allDay: boolean } | null {
+  const match = data.match(new RegExp(`${field}(;[^:\\r\\n]*)?:([^\\r\\n]+)`));
+  if (!match) return null;
+
+  const params = match[1] ?? "";
+  const value = match[2].trim();
+  const allDay = params.includes("VALUE=DATE") && !params.includes("VALUE=DATE-TIME");
+
+  const y = value.slice(0, 4);
+  const mo = value.slice(4, 6);
+  const d = value.slice(6, 8);
+
+  if (allDay) {
+    return { date: new Date(`${y}-${mo}-${d}T00:00:00Z`), allDay: true };
+  }
+
+  const h = value.slice(9, 11) || "00";
+  const mi = value.slice(11, 13) || "00";
+  const s = value.slice(13, 15) || "00";
+  return { date: new Date(`${y}-${mo}-${d}T${h}:${mi}:${s}Z`), allDay: false };
+}
+
+// Returns the time periods on `date` where the owner has manually blocked
+// themselves out in Apple Calendar (a day off, an appointment elsewhere,
+// etc.) — anything in the calendar that ISN'T one of this app's own booking
+// events. Returns null if Apple credentials aren't configured.
+export async function getBusyPeriods(date: string): Promise<BusyPeriod[] | null> {
+  const connection = await connect();
+  if (!connection) return null;
+  const { client, calendar } = connection;
+
+  const dayStart = new Date(`${date}T00:00:00Z`);
+  const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60_000);
+
+  const events = await client.fetchCalendarObjects({
+    calendar,
+    timeRange: {
+      // A day's worth of buffer either side covers all-day events and any
+      // timezone slop, since we filter by real overlap below anyway.
+      start: new Date(dayStart.getTime() - 24 * 60 * 60_000).toISOString(),
+      end: new Date(dayEnd.getTime() + 24 * 60 * 60_000).toISOString(),
+    },
+  });
+
+  const busy: BusyPeriod[] = [];
+
+  for (const event of events) {
+    if (event.data.includes(OWN_BOOKING_MARKER)) continue;
+
+    const start = parseEventTime(event.data, "DTSTART");
+    if (!start) continue;
+
+    const end = parseEventTime(event.data, "DTEND");
+    const endDate = end
+      ? end.date
+      : new Date(
+          start.date.getTime() + (start.allDay ? 24 * 60 * 60_000 : 60 * 60_000)
+        );
+
+    if (endDate <= dayStart || start.date >= dayEnd) continue;
+
+    busy.push({ start: start.date, end: endDate });
+  }
+
+  return busy;
+}
