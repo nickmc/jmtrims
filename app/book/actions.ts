@@ -1,7 +1,14 @@
 "use server";
 
 import { db } from "@/lib/db";
-import { isOpenDay, isPastSlot, slotsForDay, slotStartUtc, SLOT_MINUTES } from "@/lib/booking";
+import {
+  isOpenDay,
+  isPastSlot,
+  isValidPhoneNumber,
+  slotsForDay,
+  slotStartUtc,
+  SLOT_MINUTES,
+} from "@/lib/booking";
 import { addBookingToCalendar, getBusyPeriods, type BusyPeriod } from "@/lib/calendar";
 import type { StatementResultingChanges } from "node:sqlite";
 
@@ -81,6 +88,12 @@ export async function createBooking(
   }
   if (!name.trim() || !phone.trim() || !location.trim()) {
     return { ok: false, error: "Name, phone, and location are all required." };
+  }
+  if (!isValidPhoneNumber(phone)) {
+    return {
+      ok: false,
+      error: "Please enter a valid UK phone number, e.g. 07123 456789.",
+    };
   }
 
   const startsAt = `${date}T${time}`;

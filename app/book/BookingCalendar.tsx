@@ -214,7 +214,10 @@ export default function BookingCalendar() {
             />
             <input
               required
-              placeholder="Phone number"
+              type="tel"
+              placeholder="Phone number, e.g. 07123 456789"
+              pattern="^[\d\s().+-]{10,15}$"
+              title="Enter a valid UK phone number, e.g. 07123 456789"
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
               className="rounded border border-black/20 px-3 py-2"

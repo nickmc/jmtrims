@@ -54,6 +54,14 @@ export function isPastSlot(date: string, time: string): boolean {
   return slotStartUtc(date, time).getTime() <= Date.now();
 }
 
+// UK phone numbers: 11 digits starting with 0 (07123 456789, 01234 567890),
+// or the same number with 0 replaced by +44. Spaces/dashes/brackets are
+// ignored so customers can type it however feels natural.
+export function isValidPhoneNumber(raw: string): boolean {
+  const cleaned = raw.replace(/[\s().-]/g, "");
+  return /^0\d{10}$/.test(cleaned) || /^\+44\d{10}$/.test(cleaned);
+}
+
 export function slotsForDay(): string[] {
   const slots: string[] = [];
   const closeMinutes = CLOSE_HOUR * 60;
