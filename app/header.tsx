@@ -72,7 +72,12 @@ export default function Header() {
         )}
       </div>
 
-      <p className="text-lg font-medium text-[#f5f0e1]">JMTrims</p>
+      <p
+        className="text-3xl font-medium tracking-wide text-[#f5f0e1] uppercase"
+        style={{ fontFamily: "var(--font-oswald)" }}
+      >
+        JM Trims
+      </p>
 
       <a
         href="https://www.instagram.com/jmtrims__"
