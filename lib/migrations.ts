@@ -77,6 +77,15 @@ export const migrations: Migration[] = [
       );
     },
   },
+  {
+    name: "add_notes_to_appointments",
+    up: (db) => {
+      // Optional free-text note a customer can leave with a booking (e.g. "a
+      // bit shorter on top this time"), shown to the owner via the synced
+      // calendar event's description.
+      db.exec(`ALTER TABLE appointments ADD COLUMN notes TEXT`);
+    },
+  },
 ];
 
 /**

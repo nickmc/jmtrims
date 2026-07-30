@@ -65,6 +65,7 @@ export type BookingInput = {
   name: string;
   phone: string;
   location: string;
+  notes: string;
 };
 
 export type BookingResult = { ok: true } | { ok: false; error: string };
@@ -72,7 +73,7 @@ export type BookingResult = { ok: true } | { ok: false; error: string };
 export async function createBooking(
   input: BookingInput
 ): Promise<BookingResult> {
-  const { date, time, name, phone, location } = input;
+  const { date, time, name, phone, location, notes } = input;
 
   if (!isOpenDay(date)) {
     return { ok: false, error: "That day isn't available for bookings." };
@@ -102,9 +103,9 @@ export async function createBooking(
   try {
     changes = db
       .prepare(
-        "INSERT INTO appointments (name, phone, location, starts_at) VALUES (?, ?, ?, ?)"
+        "INSERT INTO appointments (name, phone, location, starts_at, notes) VALUES (?, ?, ?, ?, ?)"
       )
-      .run(name.trim(), phone.trim(), location.trim(), startsAt);
+      .run(name.trim(), phone.trim(), location.trim(), startsAt, notes.trim() || null);
   } catch (error) {
     console.error("Failed to create booking:", error);
     return {
@@ -118,6 +119,7 @@ export async function createBooking(
       name: name.trim(),
       phone: phone.trim(),
       location: location.trim(),
+      notes: notes.trim(),
       date,
       time,
     });

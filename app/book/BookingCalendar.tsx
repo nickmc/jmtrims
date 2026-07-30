@@ -46,6 +46,7 @@ export default function BookingCalendar() {
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [location, setLocation] = useState("");
+  const [notes, setNotes] = useState("");
   const [status, setStatus] = useState<"idle" | "success" | "error">("idle");
   const [errorMessage, setErrorMessage] = useState("");
   const [refreshTick, setRefreshTick] = useState(0);
@@ -92,6 +93,7 @@ export default function BookingCalendar() {
         name,
         phone,
         location,
+        notes,
       });
 
       if (result.ok) {
@@ -105,6 +107,7 @@ export default function BookingCalendar() {
         setName("");
         setPhone("");
         setLocation("");
+        setNotes("");
       } else {
         setStatus("error");
         setErrorMessage(result.error);
@@ -230,6 +233,13 @@ export default function BookingCalendar() {
               className="rounded border border-black/20 px-3 py-2"
             />
           </div>
+          <textarea
+            placeholder="Anything you'd like us to know? (optional)"
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            rows={2}
+            className="rounded border border-black/20 px-3 py-2"
+          />
           <button
             type="submit"
             disabled={isPending}

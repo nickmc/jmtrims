@@ -8,6 +8,7 @@ export type BookingCalendarInput = {
   name: string;
   phone: string;
   location: string;
+  notes: string;
   date: string; // YYYY-MM-DD
   time: string; // HH:MM, in the shop's local time (see lib/booking.ts)
 };
@@ -31,6 +32,9 @@ function buildEventIcs(
 ): string {
   const start = slotStartUtc(input.date, input.time);
   const end = new Date(start.getTime() + SLOT_MINUTES * 60_000);
+  const description = input.notes
+    ? `Phone: ${input.phone}\nNotes: ${input.notes}`
+    : `Phone: ${input.phone}`;
 
   return [
     "BEGIN:VCALENDAR",
@@ -43,7 +47,7 @@ function buildEventIcs(
     `DTEND:${formatUtc(end)}`,
     `SUMMARY:${escapeIcsText(`Haircut - ${input.name}`)}`,
     `LOCATION:${escapeIcsText(input.location)}`,
-    `DESCRIPTION:${escapeIcsText(`Phone: ${input.phone}`)}`,
+    `DESCRIPTION:${escapeIcsText(description)}`,
     "BEGIN:VALARM",
     "ACTION:DISPLAY",
     "DESCRIPTION:New booking",
