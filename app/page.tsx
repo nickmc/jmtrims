@@ -69,7 +69,7 @@ export default function Home() {
           className="flex flex-col items-center gap-2 text-current transition-opacity hover:opacity-70"
         >
           <InstagramIcon width={32} height={32} />
-          <span className="text-sm">Message us on Instagram</span>
+          <span className="text-sm">DM us on Instagram</span>
         </a>
       </section>
     </>
