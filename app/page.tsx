@@ -1,5 +1,6 @@
 import BookingCalendar from "./book/BookingCalendar";
 import InstagramIcon from "./instagram-icon";
+import Reviews from "./reviews";
 import { SECTION_IDS } from "./sections";
 
 export default function Home() {
@@ -49,6 +50,8 @@ export default function Home() {
           />
         </div>
       </section>
+
+      <Reviews />
 
       <section
         id={SECTION_IDS[1]}
